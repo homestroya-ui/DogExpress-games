@@ -1,0 +1,47 @@
+name: Android APK
+on:
+  push:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.13'
+      - name: Prepare Android module
+        run: |
+          mkdir -p app/src/main/java/com/dogexpress/games app/src/main/assets
+          cp AndroidManifest.xml app/src/main/
+          cp MainActivity.java app/src/main/java/com/dogexpress/games/
+          cp index.html app/src/main/assets/
+          cat > app/build.gradle <<'GRADLE'
+          plugins { id 'com.android.application' }
+          android {
+              namespace 'com.dogexpress.games'
+              compileSdk 36
+              defaultConfig {
+                  applicationId 'com.dogexpress.games'
+                  minSdk 26
+                  targetSdk 36
+                  versionCode 1
+                  versionName '0.1.0'
+              }
+          }
+          GRADLE
+      - name: Install Android SDK packages
+        run: sdkmanager 'platforms;android-36' 'build-tools;35.0.0'
+      - name: Build test APK
+        run: gradle --no-daemon :app:assembleDebug
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dogexpress-games-test
+          path: app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
